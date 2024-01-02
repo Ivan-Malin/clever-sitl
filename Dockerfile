@@ -1,5 +1,5 @@
 # Use px4 base image for simulation
-FROM px4io/px4-dev-ros-kinetic:2019-03-08
+FROM px4io/px4-dev-ros-kinetic:latest
 
 # Add a non-privileged user to make ROS happy
 
@@ -31,7 +31,10 @@ RUN apt-get update \
 		nano \
 		xvfb \
 		wget \
-	&& wget https://bootstrap.pypa.io/get-pip.py \
+		python-dev \
+		python3-dev \
+		libffi-dev \
+	&& wget https://bootstrap.pypa.io/pip/3.5/get-pip.py \
 	&& python3 get-pip.py \
 	&& python get-pip.py \
 	&& mkdir /var/run/sshd \
@@ -60,19 +63,27 @@ RUN git clone --depth 1 https://github.com/CopterExpress/Firmware -b v1.8.2-clev
 
 ENV QT_X11_NO_MITSHM=1
 
-#RUN /scripts/clever_install.sh \
-#	&& sudo rm -rf /var/lib/apt/lists/*
+USER root
+# setup keys
+RUN set -ex && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+USER $ROSUSER
+
+COPY /scripts /scripts
+# RUN /scripts/clever_install.sh \
+# 	&& sudo rm -rf /var/lib/apt/lists/*
 RUN . /opt/ros/kinetic/setup.sh \
 	&& sudo apt-get update \
-	&& sudo apt-get install -y --no-install-recommends \
+	&& sudo apt-get install -y --no-install-recommends --allow-unauthenticated \
 		git \
 		python-dev \
 		python3-dev \
 		sed \
 		ros-kinetic-compressed-image-transport \
+		ros-kinetic-tf2-geometry-msgs \
 	&& mkdir -p /home/$ROSUSER/catkin_ws/src \
 	&& git clone --depth 1 https://github.com/sfalexrog/clever -b WIP/sitl-args /home/$ROSUSER/catkin_ws/src/clever \
 	&& cd /home/$ROSUSER/catkin_ws \
+	&& rosdep update \
 	&& rosdep install -y --from-paths src --ignore-src -r \
 	&& catkin_make \
 	&& (xargs -a /home/$ROSUSER/catkin_ws/src/clever/clever/requirements.txt -n 1 pip install --user || true) \
